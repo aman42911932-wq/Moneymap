@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoneyMap — Transaction Management</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">M</div>
+      <div class="brand-title">MoneyMap</div>
+    </div>
+    <ul class="nav-menu">
+      <li class="nav-item"><a href="dashboard.html"><span class="icon">📊</span> Overview</a></li>
+      <li class="nav-item active"><a href="transactions.html"><span class="icon">💳</span> Transactions</a></li>
+      <li class="nav-item"><a href="statement-import.html"><span class="icon">📥</span> Statement Import</a></li>
+      <li class="nav-item"><a href="budgets.html"><span class="icon">🎯</span> Budgets & Alerts</a></li>
+      <li class="nav-item"><a href="goals.html"><span class="icon">🏆</span> Savings Goals</a></li>
+      <li class="nav-item"><a href="recurring.html"><span class="icon">🔄</span> Recurring Bills</a></li>
+      <li class="nav-item"><a href="bank-accounts.html"><span class="icon">🏦</span> Bank Accounts</a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <div class="user-avatar" id="sidebarUserAvatar">U</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebarUserName" style="font-weight: 600; font-size: 0.9rem;">User</div>
+          <div class="user-role" id="sidebarUserRole">Registered User</div>
+        </div>
+      </div>
+      <a href="javascript:void(0)" onclick="handleLogout()" title="Sign Out" style="color: var(--text-muted); text-decoration: none; font-size: 1.2rem; cursor: pointer;">🚪</a>
+    </div>
+  </aside>
+
+  <!-- Main Content Wrapper -->
+  <div class="main-wrapper">
+    <header class="topbar">
+      <div class="page-heading">
+        <h1>All Transactions</h1>
+        <p>Search, filter, and organize your complete income and expense records</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary btn-sm" onclick="openModal('addIncomeModal')">+ Income</button>
+        <button class="btn btn-primary btn-sm" onclick="openModal('addExpenseModal')">+ Expense</button>
+      </div>
+    </header>
+
+    <main class="content-container">
+      <!-- Filter Bar -->
+      <div class="card" style="padding: 16px 24px; margin-bottom: 20px;">
+        <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
+          <div style="flex: 2; min-width: 200px;">
+            <input type="text" id="searchInput" class="form-control" placeholder="Search merchant, source, or description..." oninput="filterTransactions()">
+          </div>
+          <div style="flex: 1; min-width: 140px;">
+            <select id="typeFilter" class="form-control" onchange="filterTransactions()">
+              <option value="all">All Types</option>
+              <option value="expense">Expenses Only</option>
+              <option value="income">Income Only</option>
+            </select>
+          </div>
+          <div style="flex: 1; min-width: 150px;">
+            <select id="categoryFilter" class="form-control" onchange="filterTransactions()">
+              <option value="all">All Categories</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transactions Table Card -->
+      <div class="card">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Title / Merchant</th>
+                <th>Category</th>
+                <th>Payment Mode / Account</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="transactionsTableBody">
+              <tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">Loading transactions...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add Expense Modal -->
+  <div class="modal-overlay" id="addExpenseModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Record New Expense</h3>
+        <button class="modal-close" onclick="closeModal('addExpenseModal')">&times;</button>
+      </div>
+      <form onsubmit="submitExpense(event)">
+        <div class="form-group">
+          <label>Merchant / Place</label>
+          <input type="text" id="expPlace" class="form-control" required placeholder="e.g. Swiggy, Uber, Petrol">
+        </div>
+        <div class="form-group">
+          <label>Amount (₹)</label>
+          <input type="number" step="0.01" id="expAmount" class="form-control" required placeholder="500.00">
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select id="expCategory" class="form-control"></select>
+        </div>
+        <div class="form-group">
+          <label>Bank Account</label>
+          <select id="expAccount" class="form-control">
+            <option value="">Default Account</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Payment Mode</label>
+          <select id="expMode" class="form-control">
+            <option value="UPI">UPI (Google Pay / PhonePe)</option>
+            <option value="Debit Card">Debit Card</option>
+            <option value="Credit Card">Credit Card</option>
+            <option value="Net Banking">Net Banking</option>
+            <option value="Cash">Cash</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="expDate" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Description (Optional)</label>
+          <input type="text" id="expDesc" class="form-control" placeholder="Notes">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Add Expense</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Income Modal -->
+  <div class="modal-overlay" id="addIncomeModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Record Income</h3>
+        <button class="modal-close" onclick="closeModal('addIncomeModal')">&times;</button>
+      </div>
+      <form onsubmit="submitIncome(event)">
+        <div class="form-group">
+          <label>Source</label>
+          <input type="text" id="incSource" class="form-control" required placeholder="e.g. Salary, Consulting">
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select id="incCategory" class="form-control"></select>
+        </div>
+        <div class="form-group">
+          <label>Bank Account</label>
+          <select id="incAccount" class="form-control">
+            <option value="">Default Account</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Amount (₹)</label>
+          <input type="number" step="0.01" id="incAmount" class="form-control" required placeholder="25000.00">
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="incDate" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Description (Optional)</label>
+          <input type="text" id="incDesc" class="form-control" placeholder="Notes">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Add Income</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    let allTransactions = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      document.getElementById('expDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('incDate').value = new Date().toISOString().split('T')[0];
+      await loadCategoriesAndAccounts();
+      await loadTransactions();
+    });
+
+    async function loadCategoriesAndAccounts() {
+      try {
+        const catRes = await API.getCategories();
+        if (catRes && catRes.success && catRes.data) {
+          const filterSel = document.getElementById('categoryFilter');
+          const expSel = document.getElementById('expCategory');
+          const incSel = document.getElementById('incCategory');
+
+          const allCats = catRes.data;
+          filterSel.innerHTML = '<option value="all">All Categories</option>' +
+            allCats.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('');
+
+          const expCats = allCats.filter(c => c.type === 'expense');
+          expSel.innerHTML = expCats.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('');
+
+          const incCats = allCats.filter(c => c.type === 'income');
+          incSel.innerHTML = incCats.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('');
+        }
+
+        const accRes = await API.getBankAccounts();
+        if (accRes && accRes.success && accRes.data) {
+          const expAcc = document.getElementById('expAccount');
+          const incAcc = document.getElementById('incAccount');
+          const opts = accRes.data.map(a => `<option value="${a.accountId}">${escapeHtml(a.bankName)} (•••• ${escapeHtml(a.accountLast4)})</option>`).join('');
+          expAcc.innerHTML = '<option value="">Default Account</option>' + opts;
+          incAcc.innerHTML = '<option value="">Default Account</option>' + opts;
+        }
+      } catch (ignored) {}
+    }
+
+    async function loadTransactions() {
+      const expRes = await API.getExpenses();
+      const incRes = await API.getIncomes();
+
+      const expenses = (expRes && expRes.success && expRes.data ? expRes.data : []).map(e => ({
+        id: e.expenseId,
+        date: e.date,
+        title: e.merchantPlace || e.description || 'Expense',
+        category: e.categoryName || 'Miscellaneous',
+        mode: e.paymentMethod || (e.bankName ? e.bankName : 'UPI'),
+        amount: e.amount,
+        isExpense: true
+      }));
+
+      const incomes = (incRes && incRes.success && incRes.data ? incRes.data : []).map(i => ({
+        id: i.incomeId,
+        date: i.date,
+        title: i.source || i.description || 'Income',
+        category: i.categoryName || 'Other Income',
+        mode: i.bankName ? i.bankName : 'Direct Deposit',
+        amount: i.amount,
+        isExpense: false
+      }));
+
+      allTransactions = [...expenses, ...incomes].sort((a, b) => new Date(b.date) - new Date(a.date));
+      filterTransactions();
+    }
+
+    function filterTransactions() {
+      const q = document.getElementById('searchInput').value.toLowerCase().trim();
+      const type = document.getElementById('typeFilter').value;
+      const cat = document.getElementById('categoryFilter').value;
+
+      const filtered = allTransactions.filter(tx => {
+        const matchesQ = !q || tx.title.toLowerCase().includes(q) || tx.category.toLowerCase().includes(q);
+        const matchesType = type === 'all' || (type === 'expense' && tx.isExpense) || (type === 'income' && !tx.isExpense);
+        const matchesCat = cat === 'all' || tx.category.toLowerCase() === cat.toLowerCase();
+        return matchesQ && matchesType && matchesCat;
+      });
+
+      renderTable(filtered);
+    }
+
+    function renderTable(list) {
+      const tbody = document.getElementById('transactionsTableBody');
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">No matching transactions found.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(tx => `
+        <tr>
+          <td>${escapeHtml(tx.date)}</td>
+          <td style="font-weight: 600;">${escapeHtml(tx.title)}</td>
+          <td><span class="badge badge-neutral">${escapeHtml(tx.category)}</span></td>
+          <td>${escapeHtml(tx.mode)}</td>
+          <td><span class="badge ${tx.isExpense ? 'badge-expense' : 'badge-income'}">${tx.isExpense ? 'Expense' : 'Income'}</span></td>
+          <td style="font-weight: 700; color: ${tx.isExpense ? 'var(--danger)' : 'var(--success)'};">
+            ${tx.isExpense ? '-' : '+'} ${formatCurrency(tx.amount)}
+          </td>
+          <td>
+            <button class="btn btn-secondary btn-sm" onclick="deleteTx(${tx.id}, ${tx.isExpense})" title="Delete Transaction">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function deleteTx(id, isExpense) {
+      if (!confirm("Are you sure you want to delete this transaction?")) return;
+      if (isExpense) await API.deleteExpense(id);
+      else await API.deleteIncome(id);
+      await loadTransactions();
+    }
+
+    async function submitExpense(e) {
+      e.preventDefault();
+      const accVal = document.getElementById('expAccount').value;
+      const payload = {
+        merchantPlace: document.getElementById('expPlace').value.trim(),
+        amount: parseFloat(document.getElementById('expAmount').value),
+        categoryName: document.getElementById('expCategory').value,
+        paymentMethod: document.getElementById('expMode').value,
+        accountId: accVal ? parseInt(accVal) : null,
+        date: document.getElementById('expDate').value,
+        description: document.getElementById('expDesc').value.trim()
+      };
+      await API.addExpense(payload);
+      closeModal('addExpenseModal');
+      await loadTransactions();
+    }
+
+    async function submitIncome(e) {
+      e.preventDefault();
+      const accVal = document.getElementById('incAccount').value;
+      const payload = {
+        source: document.getElementById('incSource').value.trim(),
+        categoryName: document.getElementById('incCategory').value,
+        amount: parseFloat(document.getElementById('incAmount').value),
+        accountId: accVal ? parseInt(accVal) : null,
+        date: document.getElementById('incDate').value,
+        description: document.getElementById('incDesc').value.trim()
+      };
+      await API.addIncome(payload);
+      closeModal('addIncomeModal');
+      await loadTransactions();
+    }
+  </script>
+</body>
+</html>

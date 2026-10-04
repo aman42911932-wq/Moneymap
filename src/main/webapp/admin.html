@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoneyMap — Administrator Console</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon" style="background: linear-gradient(135deg, #f43f5e, #a855f7);">A</div>
+      <div class="brand-title">Admin Console</div>
+    </div>
+    <ul class="nav-menu">
+      <li class="nav-item active"><a href="admin.html"><span class="icon">🛡️</span> Platform Overview</a></li>
+      <li class="nav-item"><a href="#usersSection"><span class="icon">👥</span> User Management</a></li>
+      <li class="nav-item"><a href="#categoriesSection"><span class="icon">🏷️</span> Category Master</a></li>
+      <li class="nav-item"><a href="dashboard.html"><span class="icon">👤</span> Switch to User Portal</a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <div class="user-avatar" style="background: #f43f5e;">A</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebarUserName">System Admin</div>
+          <div class="user-role" id="sidebarUserRole">Administrator</div>
+        </div>
+      </div>
+      <a href="javascript:void(0)" onclick="handleLogout()" title="Sign Out" style="color: var(--text-muted); text-decoration: none; font-size: 1.2rem; cursor: pointer;">🚪</a>
+    </div>
+  </aside>
+
+  <!-- Main Content Wrapper -->
+  <div class="main-wrapper">
+    <header class="topbar">
+      <div class="page-heading">
+        <h1>Platform Administration & Governance</h1>
+        <p>Monitor system statistics, manage registered users, and configure master financial categories</p>
+      </div>
+    </header>
+
+    <main class="content-container">
+      <!-- System Stats -->
+      <div class="grid-cards-4">
+        <div class="stat-card">
+          <div class="stat-icon indigo">👥</div>
+          <div class="stat-info">
+            <div class="stat-label">Total Users</div>
+            <div class="stat-value" id="statUsers">0</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">📊</div>
+          <div class="stat-info">
+            <div class="stat-label">Total Transactions</div>
+            <div class="stat-value" id="statTransactions">0</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon rose">🏷️</div>
+          <div class="stat-info">
+            <div class="stat-label">Master Categories</div>
+            <div class="stat-value" id="statCategories">0</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon amber">⚡</div>
+          <div class="stat-info">
+            <div class="stat-label">System Health</div>
+            <div class="stat-value" style="color: var(--success);">Operational</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Users Management Table -->
+      <div class="card" id="usersSection">
+        <div class="card-header">
+          <h3 class="card-title">Registered Users</h3>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>User ID</th>
+                <th>Full Name</th>
+                <th>Email Address</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersTable">
+              <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">Loading users...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Category Management -->
+      <div class="card" id="categoriesSection">
+        <div class="card-header">
+          <h3 class="card-title">System Master Categories</h3>
+          <button class="btn btn-primary btn-sm" onclick="openModal('addCategoryModal')">+ Add Category</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Category Name</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Toggle Status</th>
+              </tr>
+            </thead>
+            <tbody id="adminCategoriesTable">
+              <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Loading categories...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add Category Modal -->
+  <div class="modal-overlay" id="addCategoryModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Create New Category</h3>
+        <button class="modal-close" onclick="closeModal('addCategoryModal')">&times;</button>
+      </div>
+      <form onsubmit="submitCategory(event)">
+        <div class="form-group">
+          <label>Category Name</label>
+          <input type="text" id="catName" class="form-control" required placeholder="e.g. Subscriptions, Pet Care">
+        </div>
+        <div class="form-group">
+          <label>Category Type</label>
+          <select id="catType" class="form-control">
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Icon Identifier</label>
+          <input type="text" id="catIcon" class="form-control" placeholder="tag, paw, film, etc.">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Create Category</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    let usersList = [];
+    let categoriesList = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadStats();
+      await loadAdminUsers();
+      await loadAdminCategories();
+    });
+
+    async function loadStats() {
+      try {
+        const res = await API.getAdminStats();
+        if (res && res.success && res.data) {
+          document.getElementById('statUsers').textContent = res.data.totalUsers || 0;
+          document.getElementById('statTransactions').textContent = res.data.totalTransactions || 0;
+          document.getElementById('statCategories').textContent = res.data.totalCategories || 0;
+        }
+      } catch (ignored) {}
+    }
+
+    async function loadAdminUsers() {
+      const res = await API.getAdminUsers();
+      usersList = (res && res.success && res.data) ? res.data : [];
+      renderAdminUsers();
+    }
+
+    function renderAdminUsers() {
+      const tbody = document.getElementById('adminUsersTable');
+      if (!usersList.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">No registered users found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = usersList.map(u => `
+        <tr>
+          <td>#MM-${u.userId}</td>
+          <td style="font-weight: 600;">${escapeHtml(u.name)}</td>
+          <td>${escapeHtml(u.email)}</td>
+          <td>${escapeHtml(u.phone || 'N/A')}</td>
+          <td>
+            <span class="badge ${u.isActive ? 'badge-income' : 'badge-expense'}">
+              ${u.isActive ? 'Active' : 'Deactivated'}
+            </span>
+          </td>
+          <td>
+            <button class="btn btn-secondary btn-sm" onclick="toggleUser(${u.userId}, ${u.isActive})">
+              ${u.isActive ? 'Deactivate' : 'Activate'}
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function toggleUser(id, currentStatus) {
+      const newStatus = !currentStatus;
+      await API.toggleUserStatus(id, newStatus);
+      await loadAdminUsers();
+      await loadStats();
+    }
+
+    async function loadAdminCategories() {
+      const res = await API.getAdminCategories();
+      categoriesList = (res && res.success && res.data) ? res.data : [];
+      renderAdminCategories();
+    }
+
+    function renderAdminCategories() {
+      const tbody = document.getElementById('adminCategoriesTable');
+      if (!categoriesList.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">No categories found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = categoriesList.map(c => `
+        <tr>
+          <td>#${c.categoryId}</td>
+          <td style="font-weight: 600;">${escapeHtml(c.name)}</td>
+          <td><span class="badge ${c.type === 'expense' ? 'badge-expense' : 'badge-income'}">${escapeHtml(c.type)}</span></td>
+          <td>
+            <span class="badge ${c.isActive ? 'badge-income' : 'badge-neutral'}">
+              ${c.isActive ? 'Active' : 'Inactive'}
+            </span>
+          </td>
+          <td>
+            <button class="btn btn-secondary btn-sm" onclick="toggleCat(${c.categoryId}, ${c.isActive})">
+              ${c.isActive ? 'Disable' : 'Enable'}
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function toggleCat(id, currentStatus) {
+      const newStatus = !currentStatus;
+      await API.toggleCategoryStatus(id, newStatus);
+      await loadAdminCategories();
+      await loadStats();
+    }
+
+    async function submitCategory(e) {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById('catName').value.trim(),
+        type: document.getElementById('catType').value,
+        icon: document.getElementById('catIcon').value.trim() || 'tag'
+      };
+      await API.createAdminCategory(payload);
+      closeModal('addCategoryModal');
+      document.getElementById('catName').value = '';
+      await loadAdminCategories();
+      await loadStats();
+    }
+  </script>
+</body>
+</html>

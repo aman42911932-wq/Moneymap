@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoneyMap — Financial Intelligence Dashboard</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">M</div>
+      <div class="brand-title">MoneyMap</div>
+    </div>
+    <ul class="nav-menu">
+      <li class="nav-item active"><a href="dashboard.html"><span class="icon">📊</span> Overview</a></li>
+      <li class="nav-item"><a href="transactions.html"><span class="icon">💳</span> Transactions</a></li>
+      <li class="nav-item"><a href="statement-import.html"><span class="icon">📥</span> Statement Import</a></li>
+      <li class="nav-item"><a href="budgets.html"><span class="icon">🎯</span> Budgets & Alerts</a></li>
+      <li class="nav-item"><a href="goals.html"><span class="icon">🏆</span> Savings Goals</a></li>
+      <li class="nav-item"><a href="recurring.html"><span class="icon">🔄</span> Recurring Bills</a></li>
+      <li class="nav-item"><a href="bank-accounts.html"><span class="icon">🏦</span> Bank Accounts</a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <div class="user-avatar" id="sidebarUserAvatar">U</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebarUserName" style="font-weight: 600; font-size: 0.9rem;">User</div>
+          <div class="user-role" id="sidebarUserRole">Registered User</div>
+        </div>
+      </div>
+      <a href="javascript:void(0)" onclick="handleLogout()" title="Sign Out" style="color: var(--text-muted); text-decoration: none; font-size: 1.2rem; cursor: pointer;">🚪</a>
+    </div>
+  </aside>
+
+  <!-- Main Content Wrapper -->
+  <div class="main-wrapper">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="page-heading">
+        <h1>Financial Dashboard</h1>
+        <p>Real-time overview of your income, expenses, and budget health</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary btn-sm" onclick="openModal('addIncomeModal')">+ Income</button>
+        <button class="btn btn-primary btn-sm" onclick="openModal('addExpenseModal')">+ Expense</button>
+        <a href="statement-import.html" class="btn btn-secondary btn-sm">Upload Statement</a>
+        <div class="notif-bell" onclick="openModal('notifModal')">
+          🔔
+          <span class="badge-count" id="notifBadge" style="display: none;">0</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Dashboard Content -->
+    <main class="content-container">
+      <!-- 4 Stat Cards -->
+      <div class="grid-cards-4">
+        <div class="stat-card">
+          <div class="stat-icon green">💰</div>
+          <div class="stat-info">
+            <div class="stat-label">Total Monthly Income</div>
+            <div class="stat-value" id="kpiIncome">₹0.00</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon rose">💸</div>
+          <div class="stat-info">
+            <div class="stat-label">Total Expenses</div>
+            <div class="stat-value" id="kpiExpense">₹0.00</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon indigo">📈</div>
+          <div class="stat-info">
+            <div class="stat-label">Net Savings</div>
+            <div class="stat-value" id="kpiSavings">₹0.00</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon amber">🎯</div>
+          <div class="stat-info">
+            <div class="stat-label">Savings Rate</div>
+            <div class="stat-value" id="kpiBudgetHealth">0.0%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 24px; margin-bottom: 28px;">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Expense Breakdown by Category</h3>
+          </div>
+          <div id="categoryChartWrapper" style="height: 280px; position: relative; display: flex; align-items: center; justify-content: center;">
+            <canvas id="categoryChart"></canvas>
+            <div id="categoryChartEmpty" style="display: none; color: var(--text-muted); font-size: 0.9rem; text-align: center;">No expenses recorded yet.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Monthly Cashflow Trend</h3>
+          </div>
+          <div id="cashflowChartWrapper" style="height: 280px; position: relative;">
+            <canvas id="cashflowChart"></canvas>
+            <div id="cashflowChartEmpty" style="display: none; color: var(--text-muted); font-size: 0.9rem; text-align: center; line-height: 280px;">No historical monthly data yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Transactions Table -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Recent Transactions</h3>
+          <a href="transactions.html" class="btn btn-secondary btn-sm">View All</a>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description / Place</th>
+                <th>Category</th>
+                <th>Mode / Source</th>
+                <th>Type</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody id="recentTxTable">
+              <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading transactions...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add Expense Modal -->
+  <div class="modal-overlay" id="addExpenseModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Record New Expense</h3>
+        <button class="modal-close" onclick="closeModal('addExpenseModal')">&times;</button>
+      </div>
+      <form onsubmit="submitExpense(event)">
+        <div class="form-group">
+          <label>Merchant / Place</label>
+          <input type="text" id="expPlace" class="form-control" required placeholder="e.g. Swiggy, DMart, Shell Fuel">
+        </div>
+        <div class="form-group">
+          <label>Amount (₹)</label>
+          <input type="number" step="0.01" id="expAmount" class="form-control" required placeholder="850.00">
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select id="expCategory" class="form-control">
+            <option value="Groceries">Groceries</option>
+            <option value="Food & Dining">Food & Dining</option>
+            <option value="Transportation">Transportation</option>
+            <option value="Shopping">Shopping</option>
+            <option value="Utilities & Bills">Utilities & Bills</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="Healthcare">Healthcare</option>
+            <option value="Miscellaneous">Miscellaneous</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Payment Mode</label>
+          <select id="expMode" class="form-control">
+            <option value="UPI">UPI (Google Pay / PhonePe)</option>
+            <option value="Debit Card">Debit Card</option>
+            <option value="Credit Card">Credit Card</option>
+            <option value="Net Banking">Net Banking</option>
+            <option value="Cash">Cash</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="expDate" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Notes / Description</label>
+          <input type="text" id="expDesc" class="form-control" placeholder="Optional details">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Save Expense</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Income Modal -->
+  <div class="modal-overlay" id="addIncomeModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Record Income</h3>
+        <button class="modal-close" onclick="closeModal('addIncomeModal')">&times;</button>
+      </div>
+      <form onsubmit="submitIncome(event)">
+        <div class="form-group">
+          <label>Source / Description</label>
+          <input type="text" id="incSource" class="form-control" required placeholder="e.g. Monthly Salary, Freelance Consulting">
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select id="incCategory" class="form-control">
+            <option value="Salary">Salary</option>
+            <option value="Freelance & Consulting">Freelance & Consulting</option>
+            <option value="Investments & Dividends">Investments & Dividends</option>
+            <option value="Rental Income">Rental Income</option>
+            <option value="Other Income">Other Income</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Amount (₹)</label>
+          <input type="number" step="0.01" id="incAmount" class="form-control" required placeholder="50000.00">
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="incDate" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <input type="text" id="incDesc" class="form-control" placeholder="Optional notes">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Save Income</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Notifications Modal -->
+  <div class="modal-overlay" id="notifModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Alerts & Notifications</h3>
+        <button class="modal-close" onclick="closeModal('notifModal')">&times;</button>
+      </div>
+      <div id="notifList" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+        <!-- Injected via JS -->
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    let categoryChartInstance = null;
+    let cashflowChartInstance = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('expDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('incDate').value = new Date().toISOString().split('T')[0];
+      loadCategoryDropdowns();
+      loadDashboardData();
+      loadNotifications();
+    });
+
+    async function loadCategoryDropdowns() {
+      try {
+        const expCatRes = await API.getCategories('expense');
+        if (expCatRes && expCatRes.success && expCatRes.data && expCatRes.data.length) {
+          const select = document.getElementById('expCategory');
+          select.innerHTML = expCatRes.data.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('');
+        }
+        const incCatRes = await API.getCategories('income');
+        if (incCatRes && incCatRes.success && incCatRes.data && incCatRes.data.length) {
+          const select = document.getElementById('incCategory');
+          select.innerHTML = incCatRes.data.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('');
+        }
+      } catch (ignored) {}
+    }
+
+    async function loadDashboardData() {
+      const summaryRes = await API.getSummary();
+      const byCatRes = await API.getReportsByCategory();
+      const monthlyRes = await API.getMonthlyComparison();
+      const expRes = await API.getExpenses();
+      const incRes = await API.getIncomes();
+
+      if (summaryRes && summaryRes.success && summaryRes.data) {
+        const d = summaryRes.data;
+        document.getElementById('kpiIncome').textContent = formatCurrency(d.totalIncome);
+        document.getElementById('kpiExpense').textContent = formatCurrency(d.totalExpense);
+        document.getElementById('kpiSavings').textContent = formatCurrency(d.netSavings);
+        document.getElementById('kpiBudgetHealth').textContent = (d.savingsRate || 0) + '%';
+      }
+
+      renderCategoryChart(byCatRes && byCatRes.success ? byCatRes.data : []);
+      renderCashflowChart(monthlyRes && monthlyRes.success ? monthlyRes.data : []);
+      renderRecentTable(expRes && expRes.success ? expRes.data : [], incRes && incRes.success ? incRes.data : []);
+    }
+
+    function renderCategoryChart(breakdown) {
+      const canvas = document.getElementById('categoryChart');
+      const emptyDiv = document.getElementById('categoryChartEmpty');
+      const ctx = canvas.getContext('2d');
+
+      if (categoryChartInstance) categoryChartInstance.destroy();
+
+      if (!breakdown || !breakdown.length) {
+        canvas.style.display = 'none';
+        emptyDiv.style.display = 'block';
+        return;
+      }
+
+      canvas.style.display = 'block';
+      emptyDiv.style.display = 'none';
+
+      const labels = breakdown.map(b => b.categoryName);
+      const data = breakdown.map(b => b.amount);
+
+      categoryChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data,
+            backgroundColor: ['#6366f1', '#f43f5e', '#10b981', '#f59e0b', '#0ea5e9', '#a855f7', '#ec4899', '#14b8a6', '#8b5cf6'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } }
+          }
+        }
+      });
+    }
+
+    function renderCashflowChart(monthlyData) {
+      const canvas = document.getElementById('cashflowChart');
+      const emptyDiv = document.getElementById('cashflowChartEmpty');
+      const ctx = canvas.getContext('2d');
+
+      if (cashflowChartInstance) cashflowChartInstance.destroy();
+
+      if (!monthlyData || !monthlyData.length) {
+        canvas.style.display = 'none';
+        emptyDiv.style.display = 'block';
+        return;
+      }
+
+      canvas.style.display = 'block';
+      emptyDiv.style.display = 'none';
+
+      const labels = monthlyData.map(m => m.month);
+      const incomeData = monthlyData.map(m => m.income);
+      const expenseData = monthlyData.map(m => m.expense);
+
+      cashflowChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Income', data: incomeData, backgroundColor: '#10b981', borderRadius: 6 },
+            { label: 'Expense', data: expenseData, backgroundColor: '#f43f5e', borderRadius: 6 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#94a3b8' } } },
+          scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
+            y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+          }
+        }
+      });
+    }
+
+    function renderRecentTable(expenses, incomes) {
+      const combined = [
+        ...(expenses || []).map(e => ({ ...e, isExpense: true })),
+        ...(incomes || []).map(i => ({ ...i, isExpense: false, merchantPlace: i.source, paymentMethod: "Direct Deposit" }))
+      ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 7);
+
+      const tbody = document.getElementById('recentTxTable');
+      if (!combined.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">No transactions recorded yet.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = combined.map(tx => `
+        <tr>
+          <td>${escapeHtml(tx.date)}</td>
+          <td style="font-weight: 600;">${escapeHtml(tx.merchantPlace || tx.description || 'Transaction')}</td>
+          <td><span class="badge badge-neutral">${escapeHtml(tx.categoryName || (tx.isExpense ? 'Expense' : 'Income'))}</span></td>
+          <td>${escapeHtml(tx.paymentMethod || 'UPI')}</td>
+          <td><span class="badge ${tx.isExpense ? 'badge-expense' : 'badge-income'}">${tx.isExpense ? 'Expense' : 'Income'}</span></td>
+          <td style="font-weight: 700; color: ${tx.isExpense ? 'var(--danger)' : 'var(--success)'};">
+            ${tx.isExpense ? '-' : '+'} ${formatCurrency(tx.amount)}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function submitExpense(e) {
+      e.preventDefault();
+      const payload = {
+        merchantPlace: document.getElementById('expPlace').value.trim(),
+        amount: parseFloat(document.getElementById('expAmount').value),
+        categoryName: document.getElementById('expCategory').value,
+        paymentMethod: document.getElementById('expMode').value,
+        date: document.getElementById('expDate').value,
+        description: document.getElementById('expDesc').value.trim()
+      };
+      await API.addExpense(payload);
+      closeModal('addExpenseModal');
+      loadDashboardData();
+    }
+
+    async function submitIncome(e) {
+      e.preventDefault();
+      const payload = {
+        source: document.getElementById('incSource').value.trim(),
+        categoryName: document.getElementById('incCategory').value,
+        amount: parseFloat(document.getElementById('incAmount').value),
+        date: document.getElementById('incDate').value,
+        description: document.getElementById('incDesc').value.trim()
+      };
+      await API.addIncome(payload);
+      closeModal('addIncomeModal');
+      loadDashboardData();
+    }
+
+    async function loadNotifications() {
+      const res = await API.getNotifications();
+      const notifs = (res && res.success && res.data) ? res.data : [];
+      const listEl = document.getElementById('notifList');
+      if (!notifs.length) {
+        listEl.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">No alerts.</div>';
+        return;
+      }
+      listEl.innerHTML = notifs.map(n => `
+        <div style="padding: 12px; background: rgba(255,255,255,0.04); border-radius: 8px; border-left: 4px solid ${n.type.includes('warning') || n.type.includes('exceeded') ? 'var(--danger)' : 'var(--primary)'};">
+          <div style="font-size: 0.88rem; font-weight: 500;">${escapeHtml(n.message)}</div>
+          <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">${escapeHtml(n.createdAt ? String(n.createdAt).substring(0, 10) : 'Recent')}</div>
+        </div>
+      `).join('');
+    }
+  </script>
+</body>
+</html>

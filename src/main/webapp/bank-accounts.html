@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoneyMap — Linked Bank Accounts</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .bank-card {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      transition: var(--transition);
+    }
+    .bank-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--primary);
+    }
+    .bank-card::after {
+      content: "";
+      position: absolute;
+      top: -30%;
+      right: -20%;
+      width: 180px;
+      height: 180px;
+      background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">M</div>
+      <div class="brand-title">MoneyMap</div>
+    </div>
+    <ul class="nav-menu">
+      <li class="nav-item"><a href="dashboard.html"><span class="icon">📊</span> Overview</a></li>
+      <li class="nav-item"><a href="transactions.html"><span class="icon">💳</span> Transactions</a></li>
+      <li class="nav-item"><a href="statement-import.html"><span class="icon">📥</span> Statement Import</a></li>
+      <li class="nav-item"><a href="budgets.html"><span class="icon">🎯</span> Budgets & Alerts</a></li>
+      <li class="nav-item"><a href="goals.html"><span class="icon">🏆</span> Savings Goals</a></li>
+      <li class="nav-item"><a href="recurring.html"><span class="icon">🔄</span> Recurring Bills</a></li>
+      <li class="nav-item active"><a href="bank-accounts.html"><span class="icon">🏦</span> Bank Accounts</a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <div class="user-avatar" id="sidebarUserAvatar">U</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebarUserName" style="font-weight: 600; font-size: 0.9rem;">User</div>
+          <div class="user-role" id="sidebarUserRole">Registered User</div>
+        </div>
+      </div>
+      <a href="javascript:void(0)" onclick="handleLogout()" title="Sign Out" style="color: var(--text-muted); text-decoration: none; font-size: 1.2rem; cursor: pointer;">🚪</a>
+    </div>
+  </aside>
+
+  <div class="main-wrapper">
+    <header class="topbar">
+      <div class="page-heading">
+        <h1>Linked Bank Accounts</h1>
+        <p>Manage your bank accounts, IFSC routing details, and primary account designations</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary btn-sm" onclick="openModal('addAccountModal')">+ Link Account</button>
+      </div>
+    </header>
+
+    <main class="content-container">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;" id="accountsGrid">
+        <div style="color: var(--text-muted); grid-column: 1/-1;">Loading linked accounts...</div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Link Bank Account Modal -->
+  <div class="modal-overlay" id="addAccountModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Link New Bank Account</h3>
+        <button class="modal-close" onclick="closeModal('addAccountModal')">&times;</button>
+      </div>
+      <form onsubmit="submitAccount(event)">
+        <div class="form-group">
+          <label>Bank Name</label>
+          <input type="text" id="accBankName" class="form-control" required placeholder="e.g. State Bank of India, HDFC Bank">
+        </div>
+        <div class="form-group">
+          <label>Account Holder Name</label>
+          <input type="text" id="accHolderName" class="form-control" required placeholder="e.g. Asha Rao">
+        </div>
+        <div class="form-group">
+          <label>Last 4 Digits of Account Number</label>
+          <input type="text" maxlength="4" pattern="[0-9]{4}" id="accLast4" class="form-control" required placeholder="4821">
+        </div>
+        <div class="form-group">
+          <label>IFSC Code</label>
+          <input type="text" id="accIfsc" class="form-control" placeholder="e.g. SBIN0001234">
+        </div>
+        <div class="form-group">
+          <label>Account Type</label>
+          <select id="accType" class="form-control">
+            <option value="Savings">Savings Account</option>
+            <option value="Current">Current Account</option>
+            <option value="Salary">Salary Account</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Opening Balance (₹)</label>
+          <input type="number" step="0.01" id="accBalance" class="form-control" required placeholder="25000.00">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Link Bank Account</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      loadBankAccounts();
+    });
+
+    async function loadBankAccounts() {
+      const res = await API.getBankAccounts();
+      const accounts = (res && res.success && res.data) ? res.data : [];
+      const grid = document.getElementById('accountsGrid');
+
+      if (!accounts.length) {
+        grid.innerHTML = '<div style="color: var(--text-muted); grid-column: 1/-1; padding: 24px; text-align: center;">No linked bank accounts. Click "+ Link Account" to add your bank.</div>';
+        return;
+      }
+
+      grid.innerHTML = accounts.map(a => `
+        <div class="bank-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <div style="font-size: 1.15rem; font-weight: 700;">${escapeHtml(a.bankName)}</div>
+            ${a.isPrimary ? '<span class="badge badge-income">Primary</span>' : ''}
+          </div>
+
+          <div style="font-size: 1.3rem; letter-spacing: 2px; font-family: monospace; margin-bottom: 20px;">
+            •••• •••• •••• ${escapeHtml(a.accountLast4)}
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Holder</div>
+              <div style="font-size: 0.95rem; font-weight: 600;">${escapeHtml(a.accountHolderName)}</div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Live Balance</div>
+              <div style="font-size: 1.15rem; font-weight: 700; color: var(--success);">
+                ${formatCurrency(a.currentBalance !== undefined ? a.currentBalance : a.openingBalance)}
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center; padding-top: 12px;">
+            <span style="font-size: 0.78rem; color: var(--text-muted);">IFSC: ${escapeHtml(a.ifscCode || 'N/A')}</span>
+            ${!a.isPrimary ? `
+              <button class="btn btn-secondary btn-sm" onclick="setPrimary(${a.accountId})">Make Primary</button>
+            ` : '<span style="font-size: 0.78rem; color: var(--success);">✓ Primary Account</span>'}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function setPrimary(id) {
+      await API.setPrimaryAccount(id);
+      await loadBankAccounts();
+    }
+
+    async function submitAccount(e) {
+      e.preventDefault();
+      const payload = {
+        bankName: document.getElementById('accBankName').value.trim(),
+        accountHolderName: document.getElementById('accHolderName').value.trim(),
+        accountLast4: document.getElementById('accLast4').value.trim(),
+        ifscCode: document.getElementById('accIfsc').value.trim(),
+        accountType: document.getElementById('accType').value,
+        openingBalance: parseFloat(document.getElementById('accBalance').value)
+      };
+      await API.addBankAccount(payload);
+      closeModal('addAccountModal');
+      await loadBankAccounts();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoneyMap — Savings Goals</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">M</div>
+      <div class="brand-title">MoneyMap</div>
+    </div>
+    <ul class="nav-menu">
+      <li class="nav-item"><a href="dashboard.html"><span class="icon">📊</span> Overview</a></li>
+      <li class="nav-item"><a href="transactions.html"><span class="icon">💳</span> Transactions</a></li>
+      <li class="nav-item"><a href="statement-import.html"><span class="icon">📥</span> Statement Import</a></li>
+      <li class="nav-item"><a href="budgets.html"><span class="icon">🎯</span> Budgets & Alerts</a></li>
+      <li class="nav-item active"><a href="goals.html"><span class="icon">🏆</span> Savings Goals</a></li>
+      <li class="nav-item"><a href="recurring.html"><span class="icon">🔄</span> Recurring Bills</a></li>
+      <li class="nav-item"><a href="bank-accounts.html"><span class="icon">🏦</span> Bank Accounts</a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <div class="user-avatar" id="sidebarUserAvatar">U</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebarUserName" style="font-weight: 600; font-size: 0.9rem;">User</div>
+          <div class="user-role" id="sidebarUserRole">Registered User</div>
+        </div>
+      </div>
+      <a href="javascript:void(0)" onclick="handleLogout()" title="Sign Out" style="color: var(--text-muted); text-decoration: none; font-size: 1.2rem; cursor: pointer;">🚪</a>
+    </div>
+  </aside>
+
+  <div class="main-wrapper">
+    <header class="topbar">
+      <div class="page-heading">
+        <h1>Savings Goals</h1>
+        <p>Set targets for milestones, emergencies, or purchases and track your progress</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary btn-sm" onclick="openModal('addGoalModal')">+ New Goal</button>
+      </div>
+    </header>
+
+    <main class="content-container">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;" id="goalsGrid">
+        <div style="color: var(--text-muted); grid-column: 1/-1;">Loading savings goals...</div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Create Goal Modal -->
+  <div class="modal-overlay" id="addGoalModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Create Savings Target</h3>
+        <button class="modal-close" onclick="closeModal('addGoalModal')">&times;</button>
+      </div>
+      <form onsubmit="submitGoal(event)">
+        <div class="form-group">
+          <label>Goal Name</label>
+          <input type="text" id="goalName" class="form-control" required placeholder="e.g. New Laptop, Emergency Fund">
+        </div>
+        <div class="form-group">
+          <label>Target Amount (₹)</label>
+          <input type="number" step="0.01" id="goalTarget" class="form-control" required placeholder="50000.00">
+        </div>
+        <div class="form-group">
+          <label>Initial Saved Amount (₹)</label>
+          <input type="number" step="0.01" id="goalInitial" class="form-control" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>Target Completion Date</label>
+          <input type="date" id="goalDate" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Create Goal</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Contribute Modal -->
+  <div class="modal-overlay" id="contributeModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="contributeTitle">Add Savings Contribution</h3>
+        <button class="modal-close" onclick="closeModal('contributeModal')">&times;</button>
+      </div>
+      <form onsubmit="submitContribution(event)">
+        <input type="hidden" id="contributeGoalId">
+        <div class="form-group">
+          <label>Deposit Amount (₹)</label>
+          <input type="number" step="0.01" id="contributeAmount" class="form-control" required placeholder="2000.00">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Deposit Towards Goal</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    let goalsList = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const defaultDate = new Date();
+      defaultDate.setMonth(defaultDate.getMonth() + 6);
+      document.getElementById('goalDate').value = defaultDate.toISOString().split('T')[0];
+      loadGoals();
+    });
+
+    async function loadGoals() {
+      const res = await API.getSavingsGoals();
+      goalsList = (res && res.success && res.data) ? res.data : [];
+      const grid = document.getElementById('goalsGrid');
+
+      if (!goalsList.length) {
+        grid.innerHTML = '<div style="color: var(--text-muted); grid-column: 1/-1; padding: 24px; text-align: center;">No savings goals set yet. Click "+ New Goal" to start tracking your targets!</div>';
+        return;
+      }
+
+      grid.innerHTML = goalsList.map(g => {
+        const target = parseFloat(g.targetAmount || 1);
+        const current = parseFloat(g.currentAmount || 0);
+        const pct = Math.min(100, Math.round((current / target) * 100));
+        const isAchieved = current >= target;
+        const safeName = escapeHtml(g.goalName).replace(/'/g, "\\'");
+
+        return `
+          <div class="card" style="margin-bottom: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+              <div>
+                <h3 style="font-size: 1.15rem; font-weight: 700;">${escapeHtml(g.goalName)}</h3>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">
+                  Target Date: ${escapeHtml(g.targetDate || 'No deadline')}
+                </div>
+              </div>
+              <span class="badge ${isAchieved ? 'badge-income' : 'badge-neutral'}">
+                ${isAchieved ? '🎉 Achieved' : 'In Progress'}
+              </span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; margin-top: 14px; font-size: 0.88rem;">
+              <span>Saved: <strong style="color: var(--success);">${formatCurrency(current)}</strong></span>
+              <span>Target: <strong>${formatCurrency(target)}</strong></span>
+            </div>
+
+            <div class="progress-container">
+              <div class="progress-bar safe" style="width: ${pct}%;"></div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
+              <span style="font-size: 0.82rem; color: var(--text-muted);">${pct}% completed</span>
+              ${!isAchieved ? `
+                <button class="btn btn-secondary btn-sm" onclick="openContribute(${g.goalId}, '${safeName}')">
+                  + Add Deposit
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openContribute(id, name) {
+      document.getElementById('contributeGoalId').value = id;
+      document.getElementById('contributeTitle').textContent = `Deposit to "${name}"`;
+      document.getElementById('contributeAmount').value = '';
+      openModal('contributeModal');
+    }
+
+    async function submitContribution(e) {
+      e.preventDefault();
+      const id = document.getElementById('contributeGoalId').value;
+      const amt = parseFloat(document.getElementById('contributeAmount').value);
+      const res = await API.contributeGoal(id, amt);
+      if (res && res.success) {
+        closeModal('contributeModal');
+        await loadGoals();
+      } else {
+        alert("Failed to add contribution: " + (res && res.error ? res.error : "Error"));
+      }
+    }
+
+    async function submitGoal(e) {
+      e.preventDefault();
+      const initVal = document.getElementById('goalInitial').value;
+      const payload = {
+        goalName: document.getElementById('goalName').value.trim(),
+        targetAmount: parseFloat(document.getElementById('goalTarget').value),
+        currentAmount: initVal ? parseFloat(initVal) : 0.00,
+        targetDate: document.getElementById('goalDate').value
+      };
+      await API.addSavingsGoal(payload);
+      closeModal('addGoalModal');
+      await loadGoals();
+    }
+  </script>
+</body>
+</html>

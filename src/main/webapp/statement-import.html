@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoneyMap — Statement Import & Review</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">M</div>
+      <div class="brand-title">MoneyMap</div>
+    </div>
+    <ul class="nav-menu">
+      <li class="nav-item"><a href="dashboard.html"><span class="icon">📊</span> Overview</a></li>
+      <li class="nav-item"><a href="transactions.html"><span class="icon">💳</span> Transactions</a></li>
+      <li class="nav-item active"><a href="statement-import.html"><span class="icon">📥</span> Statement Import</a></li>
+      <li class="nav-item"><a href="budgets.html"><span class="icon">🎯</span> Budgets & Alerts</a></li>
+      <li class="nav-item"><a href="goals.html"><span class="icon">🏆</span> Savings Goals</a></li>
+      <li class="nav-item"><a href="recurring.html"><span class="icon">🔄</span> Recurring Bills</a></li>
+      <li class="nav-item"><a href="bank-accounts.html"><span class="icon">🏦</span> Bank Accounts</a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <div class="user-avatar" id="sidebarUserAvatar">U</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebarUserName" style="font-weight: 600; font-size: 0.9rem;">User</div>
+          <div class="user-role" id="sidebarUserRole">Registered User</div>
+        </div>
+      </div>
+      <a href="javascript:void(0)" onclick="handleLogout()" title="Sign Out" style="color: var(--text-muted); text-decoration: none; font-size: 1.2rem; cursor: pointer;">🚪</a>
+    </div>
+  </aside>
+
+  <!-- Main Content Wrapper -->
+  <div class="main-wrapper">
+    <header class="topbar">
+      <div class="page-heading">
+        <h1>Statement Import Engine</h1>
+        <p>Upload bank or UPI statements, review rule-based categories, and commit to accounts</p>
+      </div>
+    </header>
+
+    <main class="content-container">
+      <!-- Step 1: Upload Card -->
+      <div class="card" id="uploadStepCard">
+        <div class="card-header">
+          <h3 class="card-title">1. Select Account & Upload Statement</h3>
+        </div>
+
+        <div style="display: flex; gap: 20px; align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap;">
+          <div class="form-group" style="flex: 1; min-width: 250px; margin-bottom: 0;">
+            <label>Linked Bank Account</label>
+            <select id="bankAccountSelect" class="form-control">
+              <option value="">Default Account</option>
+            </select>
+          </div>
+          <div>
+            <button class="btn btn-secondary" onclick="loadSampleCsv()">Load Sample Statement CSV</button>
+          </div>
+        </div>
+
+        <div class="upload-dropzone" id="dropzone" onclick="document.getElementById('csvFileInput').click()">
+          <div class="dropzone-icon">📄</div>
+          <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 6px;">
+            Click to Browse or Drag & Drop Bank Statement CSV
+          </div>
+          <div style="font-size: 0.82rem; color: var(--text-muted);">
+            Supports standard CSV formats with Date, Description, Amount, and Debit/Credit
+          </div>
+          <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="handleFileSelected(event)">
+        </div>
+      </div>
+
+      <!-- Step 2: Staged Review & Confirmation -->
+      <div class="card" id="reviewStepCard" style="display: none;">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">2. Review & Confirm Transactions</h3>
+            <p style="font-size: 0.82rem; color: var(--text-muted);">
+              The system automatically suggested categories using rule-based keywords. You can edit any category or delete rows before confirming.
+            </p>
+          </div>
+          <div style="display: flex; gap: 12px;">
+            <button class="btn btn-secondary btn-sm" onclick="cancelImport()">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmImport()">Confirm & Post to Accounts</button>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description / Narration</th>
+                <th>Type</th>
+                <th>Amount (₹)</th>
+                <th>Suggested Category (Editable)</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="stagedTxTable">
+              <!-- Injected dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    let currentStaged = [];
+    let currentImportId = null;
+    let expenseCategories = [];
+    let incomeCategories = [];
+
+    const SAMPLE_CSV = 
+`Date,Description,Amount,Type
+2026-10-02,"Swiggy Order #48291",350.00,Debit
+2026-10-02,"Blinkit Groceries Express",720.00,Debit
+2026-10-01,"Uber Ride to Tech Park",210.00,Debit
+2026-10-01,"Shell Petrol Pump Fuel",1500.00,Debit
+2026-09-30,"Apollo Pharmacy Medicines",450.00,Debit
+2026-09-30,"Freelance Web Design Consulting",15000.00,Credit
+2026-09-29,"Netflix Subscription Monthly",649.00,Debit
+2026-09-28,"DMart Supermarket Essentials",2150.00,Debit
+2026-09-27,"Monthly Software Engineer Salary",50000.00,Credit`;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadAccounts();
+      await loadCategories();
+      setupDropzone();
+    });
+
+    async function loadAccounts() {
+      const res = await API.getBankAccounts();
+      const accounts = (res && res.success && res.data) ? res.data : [];
+      const select = document.getElementById('bankAccountSelect');
+      if (accounts.length) {
+        select.innerHTML = accounts.map(a => 
+          `<option value="${a.accountId}">${escapeHtml(a.bankName)} (•••• ${escapeHtml(a.accountLast4)})${a.isPrimary ? ' — Primary' : ''}</option>`
+        ).join('');
+      }
+    }
+
+    async function loadCategories() {
+      const res = await API.getCategories();
+      if (res && res.success && res.data) {
+        expenseCategories = res.data.filter(c => c.type === 'expense');
+        incomeCategories = res.data.filter(c => c.type === 'income');
+      }
+    }
+
+    function setupDropzone() {
+      const dz = document.getElementById('dropzone');
+      ['dragenter', 'dragover'].forEach(name => {
+        dz.addEventListener(name, (e) => { e.preventDefault(); dz.classList.add('dragover'); });
+      });
+      ['dragleave', 'drop'].forEach(name => {
+        dz.addEventListener(name, (e) => { e.preventDefault(); dz.classList.remove('dragover'); });
+      });
+      dz.addEventListener('drop', (e) => {
+        const file = e.dataTransfer.files[0];
+        if (file) processFile(file);
+      });
+    }
+
+    function handleFileSelected(e) {
+      const file = e.target.files[0];
+      if (file) processFile(file);
+    }
+
+    function loadSampleCsv() {
+      processCsvText("sample_bank_statement.csv", SAMPLE_CSV);
+    }
+
+    function processFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        processCsvText(file.name, e.target.result);
+      };
+      reader.readAsText(file);
+    }
+
+    async function processCsvText(fileName, content) {
+      const accId = document.getElementById('bankAccountSelect').value;
+      const res = await API.uploadStatement(fileName, content, accId ? parseInt(accId) : null);
+      if (res && res.success && res.data) {
+        currentImportId = res.data.importId;
+        currentStaged = res.data.transactions || [];
+        renderReviewTable();
+      } else {
+        alert("Failed to parse statement: " + (res && res.error ? res.error : "Unknown error"));
+      }
+    }
+
+    function renderReviewTable() {
+      const tbody = document.getElementById('stagedTxTable');
+      if (!currentStaged.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--text-muted);">No staged transactions remaining.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = currentStaged.map((tx, idx) => {
+        const isExp = tx.txnType === 'debit';
+        const catList = isExp ? expenseCategories : incomeCategories;
+        const currentCatName = tx.suggestedCategory || (isExp ? 'Miscellaneous' : 'Other Income');
+
+        return `
+          <tr>
+            <td>${escapeHtml(tx.date)}</td>
+            <td style="font-weight: 500;">${escapeHtml(tx.description)}</td>
+            <td><span class="badge ${isExp ? 'badge-expense' : 'badge-income'}">${isExp ? 'Debit (-)' : 'Credit (+)'}</span></td>
+            <td style="font-weight: 700; color: ${isExp ? 'var(--danger)' : 'var(--success)'};">${formatCurrency(tx.amount)}</td>
+            <td>
+              <select class="form-control" style="padding: 6px 10px;" onchange="updateRowCategory(${idx}, this.value)">
+                ${catList.map(c => `
+                  <option value="${escapeHtml(c.name)}" ${currentCatName.toLowerCase() === c.name.toLowerCase() ? 'selected' : ''}>${escapeHtml(c.name)}</option>
+                `).join('')}
+              </select>
+            </td>
+            <td>
+              <button class="btn btn-secondary btn-sm" onclick="removeRow(${idx})" title="Remove Row">🗑️</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('uploadStepCard').style.display = 'none';
+      document.getElementById('reviewStepCard').style.display = 'block';
+    }
+
+    async function updateRowCategory(index, newCategoryName) {
+      const tx = currentStaged[index];
+      tx.suggestedCategory = newCategoryName;
+      if (tx.transactionId) {
+        await API.updateImportCategory(tx.transactionId, null, newCategoryName);
+      }
+    }
+
+    async function removeRow(index) {
+      const tx = currentStaged[index];
+      if (tx.transactionId) {
+        await API.deleteImportTransaction(tx.transactionId);
+      }
+      currentStaged.splice(index, 1);
+      renderReviewTable();
+    }
+
+    function cancelImport() {
+      document.getElementById('reviewStepCard').style.display = 'none';
+      document.getElementById('uploadStepCard').style.display = 'block';
+    }
+
+    async function confirmImport() {
+      if (!currentStaged.length) {
+        alert("No transactions to import!");
+        return;
+      }
+      const res = await API.confirmImport(currentImportId);
+      if (res && res.success) {
+        alert("✅ " + (res.message || "Import confirmed! Transactions have been posted to your accounts."));
+        window.location.href = "transactions.html";
+      } else {
+        alert("Failed to confirm import: " + (res && res.error ? res.error : "Server error"));
+      }
+    }
+  </script>
+</body>
+</html>
